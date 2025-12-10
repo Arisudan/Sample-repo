@@ -1,0 +1,26 @@
+      Wiring Diagram for IVI System (Raspberry Pi 4)
+
+      +----------------------+
+      |    Raspberry Pi 4    |
+      |                      |
+      |   GPIO / 40-Pin      |
+      +----------------------+
+             |      |
+             |      +-------------------[ CAN HAT (SPI) ]-----------+
+             |      |                     MCP2515                   |
+             |      |                     (CS=GPIO8, INT=GPIO25)    |
+             |      |                                               |
+             |      +-----> CAN_H  ---------------------------------+---> OBD-II / Vehicle Bus
+             |      +-----> CAN_L  ---------------------------------+
+             |
+             +-------------------[ Ultrasonic Sensor HC-SR04 ]------+
+                                    VCC -> 5V
+                                    GND -> GND
+                                    Trig -> GPIO 23
+                                    Echo -> GPIO 24 (Voltage Divider 5V->3.3V)
+
+      
+      +----------------------+
+      |    Touch Display     |
+      |   (DSI or HDMI)      |
+      +----------------------+
