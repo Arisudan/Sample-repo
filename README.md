@@ -70,7 +70,6 @@ We will build the CAN, PDC, and Media services.
 
 
 1. CAN Service
-2. 
 ```bash
 mkdir -p services/can-service/build
 cd services/can-service/build
@@ -95,7 +94,6 @@ cmake ..
 make -j$(nproc)
 cd ../../..
 ```
-
 *Expected Output*: `[100%] Built target ...` for each service.
 
 ## 7. Building the Cluster UI
@@ -108,7 +106,6 @@ cmake ..
 make -j$(nproc)
 cd ../../..
 ```
-
 *Expected Output*: An executable binary named `appcluster-ui` is created in `apps/cluster-ui/build`.
 
 ## 8. Running the Backend Services
@@ -134,15 +131,17 @@ Open a **Terminal 2**. This will launch the graphical dashboard.
 ```bash
 # Export IPC Config (Clients need it too)
 export VSOMEIP_CONFIGURATION=$(pwd)/ipc/vsomeip-config/vsomeip.json
-
-# Run UI
-# If you are on a desktop environment:
+```
+Run UI:
+If you are on a desktop environment:
+```bash
 ./apps/cluster-ui/build/appcluster-ui
+```
+If you are on an embedded target without X11:
 
-# If you are on an embedded target without X11:
+```bash
 # ./apps/cluster-ui/build/appcluster-ui --platform linuxfb
 ```
-
 *Verification*: The "ASTER" dashboard should appear with gauges at 0 and the car logo.
 
 ## 10. Connecting Frontend ↔ Backend
