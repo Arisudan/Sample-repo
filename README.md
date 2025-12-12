@@ -234,21 +234,49 @@ pkill appcluster-ui
 - [ ] Warning icons respond to signals.
 - [ ] No "Echo" or placeholder text visible.
 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-📦 Verification Suite
-A new test harness script is available: 
-ivi-system/scripts/cluster_ui_test.py
-.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------# 🚗 ASTER Cluster UI – Verification Suite
 
-How to verify:
+A new automated test harness script is available:
 
-Compile & Run:
-bash
+`ivi-system/scripts/cluster_ui_test.py`
+
+This script simulates real-time vehicle telemetry including speed, RPM, gear shifts, and navigation switching.
+
+---
+
+## ✅ How to Verify the Cluster UI
+
+### 1. Compile & Run the Cluster UI
+
+```bash
 cd ivi-system/apps/cluster-ui
 mkdir build && cd build
-qt-cmake .. && make
+qt-cmake ..
+make
 ./appcluster-ui
-Inject Test Data: Open a new terminal and run:
-bash
+```
+### 2. Inject Test Data
+
+Open a new terminal and run:
+```bash
 python3 ../../../scripts/cluster_ui_test.py
-Observation: You will see the needles sweep smoothly from 0-120 km/h, the gear shift from P to D, and the center display switch to Navigation mode automatically.
+```
+### 3. What You Should Observe
+
+When the test harness starts feeding data:
+
+Speed needle sweeps smoothly from 0 to 120 km/h
+
+RPM gauge animates realistically
+
+Gear indicator cycles P → R → N → D
+
+Center display automatically switches to Navigation mode
+
+All animations run smoothly with zero lag
+
+If all these behaviours appear as listed, the ASTER Cluster UI is fully functional and correctly connected to the backend.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
