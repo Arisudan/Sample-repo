@@ -16,22 +16,25 @@ Install all necessary build tools and libraries.
 sudo apt update
 sudo apt upgrade -y
 ```
+Build Tools
+
 ```bash
-### Build Tools
 sudo apt install -y build-essential cmake g++ git
 ```
+Qt6 Dependencies
 
-# Qt6 Dependencies
 ```bash
 sudo apt install -y qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
     qml6-module-qtquick-controls qml6-module-qtquick-shapes qml6-module-qtquick-effects \
     libgl1-mesa-dev libxkbcommon-dev
 ```
+VSOMEIP Dependencies (Service Oriented Middleware)
 
-# VSOMEIP Dependencies (Service Oriented Middleware)
+```bash
 sudo apt install -y libboost-system-dev libboost-thread-dev libboost-log-dev libboost-filesystem-dev
-
-# Test Harness (Python)
+```
+Test Harness (Python)
+```bash
 sudo apt install -y python3 python3-pip
 ```
 
@@ -65,22 +68,27 @@ ivi-system/
 ## 6. Building the Backend Services
 We will build the CAN, PDC, and Media services.
 
+
+1. CAN Service
+2. 
 ```bash
-# 1. CAN Service
 mkdir -p services/can-service/build
 cd services/can-service/build
 cmake ..
 make -j$(nproc)
 cd ../../..
-
-# 2. PDC Service
+```
+2. PDC Service
+```bash
 mkdir -p services/pdc-service/build
 cd services/pdc-service/build
 cmake ..
 make -j$(nproc)
 cd ../../..
+```
 
-# 3. Media Service
+3. Media Service
+```bash
 mkdir -p services/media-service/build
 cd services/media-service/build
 cmake ..
@@ -96,14 +104,8 @@ Compile the main HMI application.
 ```bash
 mkdir -p apps/cluster-ui/build
 cd apps/cluster-ui/build
-
-# Configure (Ensure Qt6 CMake is found)
 cmake ..
-
-# Build
 make -j$(nproc)
-
-# Return to root
 cd ../../..
 ```
 
