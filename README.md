@@ -17,7 +17,7 @@ sudo apt update
 sudo apt upgrade -y
 ```
 ```bash
-# Build Tools
+### Build Tools
 sudo apt install -y build-essential cmake g++ git
 ```
 
