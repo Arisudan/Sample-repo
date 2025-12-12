@@ -15,14 +15,18 @@ Install all necessary build tools and libraries.
 ```bash
 sudo apt update
 sudo apt upgrade -y
-
+```
+```bash
 # Build Tools
 sudo apt install -y build-essential cmake g++ git
+```
 
 # Qt6 Dependencies
+```bash
 sudo apt install -y qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools \
     qml6-module-qtquick-controls qml6-module-qtquick-shapes qml6-module-qtquick-effects \
     libgl1-mesa-dev libxkbcommon-dev
+```
 
 # VSOMEIP Dependencies (Service Oriented Middleware)
 sudo apt install -y libboost-system-dev libboost-thread-dev libboost-log-dev libboost-filesystem-dev
