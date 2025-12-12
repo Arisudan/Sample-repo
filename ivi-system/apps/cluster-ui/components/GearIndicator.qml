@@ -2,50 +2,36 @@ import QtQuick
 import QtQuick.Layouts
 
 ColumnLayout {
-    spacing: 20
-    property int currentGear: 0 // 0=P, 1=R, 2=N, 3+=D
-    // Mapping: P=0, R=1, N=2, D=3,4,5...
-    
+    spacing: 15
+    width: 60
+    property string currentGear: "P"
+
     Repeater {
         model: ["P", "R", "N", "D"]
         delegate: Rectangle {
-            Layout.preferredWidth: 80
-            Layout.preferredHeight: 80
-            color: "transparent"
-            border.color: {
-                var isActive = false;
-                if (index === 0 && currentGear === 0) isActive = true; // P
-                if (index === 1 && currentGear === 1) isActive = true; // R
-                if (index === 2 && currentGear === 2) isActive = true; // N
-                if (index === 3 && currentGear >= 3)  isActive = true; // D
-                return isActive ? "#666" : "#333"
-            }
-            border.width: 4
+            Layout.alignment: Qt.AlignHCenter
+            width: 50; height: 50
             radius: 10
+            color: (modelData === currentGear) ? "#333" : "transparent"
+            border.color: (modelData === currentGear) ? "#00aaff" : "transparent"
+            border.width: 2
             
             Text {
                 anchors.centerIn: parent
                 text: modelData
-                font.pixelSize: 50
+                color: (modelData === currentGear) ? "white" : "#666"
                 font.bold: true
-                color: {
-                    var isActive = false;
-                    if (index === 0 && currentGear === 0) isActive = true;
-                    if (index === 1 && currentGear === 1) isActive = true; // R
-                    if (index === 2 && currentGear === 2) isActive = true;
-                    if (index === 3 && currentGear >= 3)  isActive = true;
-
-                    if (isActive) {
-                        if (modelData === "N") return "#00ff00"; // Green N
-                        if (modelData === "R") return "#ff4444"; // Red R
-                        return "white";
-                    }
-                    return "#555";
-                }
+                font.pixelSize: 28
             }
             
-            // Glow effect for active
-            layer.enabled: true
+            MouseArea {
+                anchors.fill: parent
+                 acceptedButtons: Qt.LeftButton
+                onClicked: {
+                    console.log("QML Clicked Gear: " + modelData)
+                    clusterClient.setGear(modelData)
+                }
+            }
         }
     }
 }

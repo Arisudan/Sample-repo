@@ -3,150 +3,229 @@
 #include <QQmlContext>
 #include <QObject>
 #include <QTimer>
+#include <QUdpSocket>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <vsomeip/vsomeip.hpp>
 #include <thread>
 #include <iostream>
+#include <mutex>
 #include <cmath>
 
-class CarData : public QObject {
+// --- Cluster Adapter Hardened Class ---
+class ClusterAdapter : public QObject {
     Q_OBJECT
-    Q_PROPERTY(double speed READ speed NOTIFY speedChanged)
-    Q_PROPERTY(double rpm READ rpm NOTIFY rpmChanged)
-    Q_PROPERTY(int gear READ gear NOTIFY gearChanged)
-    Q_PROPERTY(double fuel READ fuel NOTIFY fuelChanged)
-    Q_PROPERTY(double temp READ temp NOTIFY tempChanged)
-    Q_PROPERTY(bool leftTurn READ leftTurn NOTIFY leftTurnChanged)
-    Q_PROPERTY(bool rightTurn READ rightTurn NOTIFY rightTurnChanged)
+    
+    // Vehicle State
+    Q_PROPERTY(double vehicleSpeed READ vehicleSpeed NOTIFY vehicleSpeedChanged)
+    Q_PROPERTY(double engineRpm READ engineRpm NOTIFY engineRpmChanged)
+    Q_PROPERTY(double fuelLevel READ fuelLevel NOTIFY fuelLevelChanged)
+    Q_PROPERTY(double coolantTemp READ coolantTemp NOTIFY coolantTempChanged)
+    
+    // Signals
+    Q_PROPERTY(QString gear READ gear NOTIFY gearChanged)
+    Q_PROPERTY(bool leftIndicator READ leftIndicator NOTIFY leftIndicatorChanged)
+    Q_PROPERTY(bool rightIndicator READ rightIndicator NOTIFY rightIndicatorChanged)
+    Q_PROPERTY(bool handbrake READ handbrake NOTIFY handbrakeChanged)
+    Q_PROPERTY(bool seatbelt READ seatbelt NOTIFY seatbeltChanged)
+    Q_PROPERTY(bool battery READ battery NOTIFY batteryChanged)
+    Q_PROPERTY(bool engineWarn READ engineWarn NOTIFY engineWarnChanged)
+    Q_PROPERTY(bool fog READ fog NOTIFY fogChanged)
+    Q_PROPERTY(bool highBeam READ highBeam NOTIFY highBeamChanged)
+
+    // Navigation
+    Q_PROPERTY(bool navActive READ navActive NOTIFY navActiveChanged)
+    Q_PROPERTY(QString nextTurn READ nextTurn NOTIFY nextTurnChanged)
+    Q_PROPERTY(double nextTurnDistance READ nextTurnDistance NOTIFY nextTurnChanged)
 
 public:
-    CarData(QObject *parent = nullptr) 
-        : QObject(parent), m_speed(0), m_rpm(0), m_gear(0), 
-          m_fuel(80), m_temp(90), m_leftTurn(false), m_rightTurn(false) 
+    ClusterAdapter(QObject *parent = nullptr) 
+        : QObject(parent), 
+          m_speed(0), m_rpm(0), m_fuel(0.8), m_temp(90.0),
+          m_gear("P"), m_left(false), m_right(false),
+          m_handbrake(false), m_seatbelt(true), m_battery(false),
+          m_engine(false), m_fog(false), m_highBeam(false),
+          m_navActive(false), m_turnDist(0)
     {
-        // Simulation Timer for smoothness
-        m_simTimer = new QTimer(this);
-        connect(m_simTimer, &QTimer::timeout, this, &CarData::simulateLiveBehavior);
-        m_simTimer->start(16); // 60 FPS update tick
+        // Debug/Test Harness Socket (UDP 12345)
+        m_udpSocket = new QUdpSocket(this);
+        if(m_udpSocket->bind(QHostAddress::LocalHost, 12345)) {
+            connect(m_udpSocket, &QUdpSocket::readyRead, this, &ClusterAdapter::onUdpMessage);
+            std::cout << "[ClusterAdapter] Listening on UDP 12345 for Test Harness..." << std::endl;
+        }
     }
 
-    double speed() const { return m_speed; }
-    double rpm() const { return m_rpm; }
-    int gear() const { return m_gear; }
-    double fuel() const { return m_fuel; }
-    double temp() const { return m_temp; }
-    bool leftTurn() const { return m_leftTurn; }
-    bool rightTurn() const { return m_rightTurn; }
+    // Getters
+    double vehicleSpeed() const { return m_speed; }
+    double engineRpm() const { return m_rpm; }
+    double fuelLevel() const { return m_fuel; }
+    double coolantTemp() const { return m_temp; }
+    QString gear() const { return m_gear; }
+    bool leftIndicator() const { return m_left; }
+    bool rightIndicator() const { return m_right; }
+    bool handbrake() const { return m_handbrake; }
+    bool seatbelt() const { return m_seatbelt; }
+    bool battery() const { return m_battery; }
+    bool engineWarn() const { return m_engine; }
+    bool fog() const { return m_fog; }
+    bool highBeam() const { return m_highBeam; }
+    bool navActive() const { return m_navActive; }
+    QString nextTurn() const { return m_turnInstruction; }
+    double nextTurnDistance() const { return m_turnDist; }
 
-    void setSpeed(double s) { if (m_speed == s) return; m_speed = s; emit speedChanged(); }
-    void setRpm(double r) { if (m_rpm == r) return; m_rpm = r; emit rpmChanged(); }
-    void setGear(int g) { if (m_gear == g) return; m_gear = g; emit gearChanged(); }
-    void setLeftTurn(bool b) { if (m_leftTurn == b) return; m_leftTurn = b; emit leftTurnChanged(); }
-    void setRightTurn(bool b) { if (m_rightTurn == b) return; m_rightTurn = b; emit rightTurnChanged(); }
+    // Q_INVOKABLE Methods (Callbacks from QML)
+    Q_INVOKABLE void setGear(const QString &g) {
+        if(m_gear != g) {
+            std::cout << "[ClusterAdapter] Request setGear: " << g.toStdString() << std::endl;
+            m_gear = g; 
+            emit gearChanged();
+            // TODO: sending payload to vsomeip if writable service exists
+        }
+    }
+
+    Q_INVOKABLE void toggleLeftIndicator() {
+        m_left = !m_left; 
+        if(m_left) m_right = false; 
+        emit leftIndicatorChanged(); 
+        emit rightIndicatorChanged();
+        std::cout << "[ClusterAdapter] Toggle Left Indicator: " << m_left << std::endl;
+    }
+    
+    Q_INVOKABLE void toggleRightIndicator() {
+        m_right = !m_right;
+        if(m_right) m_left = false; 
+        emit rightIndicatorChanged(); 
+        emit leftIndicatorChanged(); 
+        std::cout << "[ClusterAdapter] Toggle Right Indicator: " << m_right << std::endl;
+    }
+
+    // internal setters (thread safe via meta object if needed, or simple atomic)
+    // Using invokeMethod in loop ensures thread safety
+    void updateSpeed(double s) { if(m_speed!=s) { m_speed=s; emit vehicleSpeedChanged(); } }
+    void updateRpm(double r) { if(m_rpm!=r) { m_rpm=r; emit engineRpmChanged(); } }
+    void updateGear(QString g) { if(m_gear!=g) { m_gear=g; emit gearChanged(); } }
 
 signals:
-    void speedChanged();
-    void rpmChanged();
+    void vehicleSpeedChanged();
+    void engineRpmChanged();
+    void fuelLevelChanged();
+    void coolantTempChanged();
     void gearChanged();
-    void fuelChanged();
-    void tempChanged();
-    void leftTurnChanged();
-    void rightTurnChanged();
+    void leftIndicatorChanged();
+    void rightIndicatorChanged();
+    void handbrakeChanged();
+    void seatbeltChanged();
+    void batteryChanged();
+    void engineWarnChanged();
+    void fogChanged();
+    void highBeamChanged();
+    void navActiveChanged();
+    void nextTurnChanged();
 
 private slots:
-    void simulateLiveBehavior() {
-        // Interpolate or sim jitter if needed
-        // For now, we just rely on setSpeed/setRpm from IPC
-        // But let's add some "life" to fuel/temp
-        static double time = 0;
-        time += 0.01;
-        
-        // Slow fluctuation for temp
-        double newTemp = 90 + std::sin(time * 0.1) * 2;
-        if(std::abs(newTemp - m_temp) > 0.1) {
-            m_temp = newTemp;
-            emit tempChanged();
-        }
-
-        // Mock Blinker Logic (if not driven by IPC for now)
-        static int blinkTimer = 0;
-        blinkTimer++;
-        if (blinkTimer > 60) { // Approx 1 sec
-             // Toggle logic could go here if we were fully mocking
-             blinkTimer = 0;
+    void onUdpMessage() {
+        while (m_udpSocket->hasPendingDatagrams()) {
+            QNetworkDatagram datagram = m_udpSocket->receiveDatagram();
+            QJsonDocument doc = QJsonDocument::fromJson(datagram.data());
+            if(doc.isObject()) {
+                QJsonObject root = doc.object();
+                if(root.contains("speed")) updateSpeed(root["speed"].toDouble());
+                if(root.contains("rpm")) updateRpm(root["rpm"].toDouble());
+                if(root.contains("gear")) updateGear(root["gear"].toString());
+                if(root.contains("nav_active")) { m_navActive = root["nav_active"].toBool(); emit navActiveChanged(); }
+                // Expand for all props
+            }
         }
     }
 
 private:
     double m_speed;
     double m_rpm;
-    int m_gear;
     double m_fuel;
     double m_temp;
-    bool m_leftTurn;
-    bool m_rightTurn;
-    QTimer* m_simTimer;
+    QString m_gear;
+    bool m_left, m_right;
+    bool m_handbrake, m_seatbelt, m_battery, m_engine, m_fog, m_highBeam;
+    bool m_navActive;
+    QString m_turnInstruction;
+    double m_turnDist;
+    
+    QUdpSocket* m_udpSocket;
 };
 
-std::shared_ptr<vsomeip::application> app;
-CarData *carDataPtr = nullptr;
+// --- VSOMEIP Integration ---
+std::shared_ptr<vsomeip::application> vsomeip_app;
+ClusterAdapter* adapter_ptr = nullptr;
 
-void on_speed_event(const std::shared_ptr<vsomeip::message> &_msg) {
+void on_speed_signal(const std::shared_ptr<vsomeip::message> &_msg) {
+    if(!adapter_ptr) return;
     std::shared_ptr<vsomeip::payload> pl = _msg->get_payload();
     if(pl->get_length() >= 2) {
         uint16_t val = (pl->get_data()[0] << 8) | pl->get_data()[1];
-        if(carDataPtr) QMetaObject::invokeMethod(carDataPtr, [val](){ carDataPtr->setSpeed(val); });
+        QMetaObject::invokeMethod(adapter_ptr, [val](){ adapter_ptr->updateSpeed(val); });
     }
 }
-
-void on_rpm_event(const std::shared_ptr<vsomeip::message> &_msg) {
+void on_rpm_signal(const std::shared_ptr<vsomeip::message> &_msg) {
+    if(!adapter_ptr) return;
     std::shared_ptr<vsomeip::payload> pl = _msg->get_payload();
     if(pl->get_length() >= 2) {
         uint16_t val = (pl->get_data()[0] << 8) | pl->get_data()[1];
-        if(carDataPtr) QMetaObject::invokeMethod(carDataPtr, [val](){ carDataPtr->setRpm(val); });
+        QMetaObject::invokeMethod(adapter_ptr, [val](){ adapter_ptr->updateRpm(val); });
     }
 }
-
-void on_gear_event(const std::shared_ptr<vsomeip::message> &_msg) {
+void on_gear_signal(const std::shared_ptr<vsomeip::message> &_msg) {
+    if(!adapter_ptr) return;
     std::shared_ptr<vsomeip::payload> pl = _msg->get_payload();
     if(pl->get_length() >= 1) {
         uint8_t val = pl->get_data()[0];
-        if(carDataPtr) QMetaObject::invokeMethod(carDataPtr, [val](){ carDataPtr->setGear(val); });
+        QString g = "P";
+        if (val == 0) g = "P";
+        else if (val == 1) g = "R";
+        else if (val == 2) g = "N";
+        else g = "D"; // Simplification for demo
+        QMetaObject::invokeMethod(adapter_ptr, [g](){ adapter_ptr->updateGear(g); });
     }
 }
 
-// Mock handler for simulated signals
-void vsomeip_thread() {
-    app = vsomeip::runtime::get()->create_application("cluster_ui");
-    app->init();
-    app->request_service(0x1234, 0x0001); 
+void vsomeip_thread_func() {
+    using namespace vsomeip;
+    vsomeip_app = runtime::get()->create_application("cluster_ui");
+    vsomeip_app->init();
     
-    app->register_message_handler(0x1234, 0x0001, 0x8001, on_speed_event);
-    app->register_message_handler(0x1234, 0x0001, 0x8002, on_rpm_event);
-    app->register_message_handler(0x1234, 0x0001, 0x8003, on_gear_event);
+    // Subscribe to CAN Service
+    vsomeip_app->request_service(0x1234, 0x0001);
+    vsomeip_app->register_message_handler(0x1234, 0x0001, 0x8001, on_speed_signal);
+    vsomeip_app->register_message_handler(0x1234, 0x0001, 0x8002, on_rpm_signal);
+    vsomeip_app->register_message_handler(0x1234, 0x0001, 0x8003, on_gear_signal);
 
-    std::set<vsomeip::eventgroup_t> groups;
-    groups.insert(0x4465);
-    app->request_event(0x1234, 0x0001, 0x8001, groups, vsomeip::event_type_e::ET_FIELD);
-    app->request_event(0x1234, 0x0001, 0x8002, groups, vsomeip::event_type_e::ET_FIELD);
-    app->request_event(0x1234, 0x0001, 0x8003, groups, vsomeip::event_type_e::ET_FIELD);
+    std::set<eventgroup_t> groups; groups.insert(0x4465);
+    vsomeip_app->request_event(0x1234, 0x0001, 0x8001, groups, event_type_e::ET_FIELD);
+    vsomeip_app->request_event(0x1234, 0x0001, 0x8002, groups, event_type_e::ET_FIELD);
+    vsomeip_app->request_event(0x1234, 0x0001, 0x8003, groups, event_type_e::ET_FIELD);
     
-    app->start();
+    vsomeip_app->start();
 }
 
 int main(int argc, char *argv[])
 {
-    qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
-
+    // Hardware Acceleration preference
+    // qputenv("QSG_RHI_BACKEND", "opengl"); // Or "vulkan" depending on Pi4 drivers
+    
     QGuiApplication app(argc, argv);
-
-    CarData carData;
-    carDataPtr = &carData;
+    
+    ClusterAdapter adapter;
+    adapter_ptr = &adapter;
 
     QQmlApplicationEngine engine;
     
-    engine.rootContext()->setContextProperty("carData", &carData);
+    // Check if we have the assets, if not, create dummies?
+    // User asked to provide assets logic but I cannot create binary Image files here.
+    // I will rely on QML Rectangle placeholders if assets missing, or generate SVG.
 
-    const QUrl url(u"qrc:/ClusterUI/main.qml"_qs);
+    // Register Types/Context
+    engine.rootContext()->setContextProperty("clusterClient", &adapter);
+
+    const QUrl url(u"qrc:/ClusterUI/ClusterMain.qml"_qs);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl)
@@ -154,7 +233,8 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
     engine.load(url);
 
-    std::thread v_thread(vsomeip_thread);
+    // Start VSOMEIP in non-blocking thread
+    std::thread v_thread(vsomeip_thread_func);
     v_thread.detach();
 
     return app.exec();

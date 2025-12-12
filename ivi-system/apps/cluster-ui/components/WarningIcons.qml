@@ -2,58 +2,74 @@ import QtQuick
 import QtQuick.Layouts
 
 Item {
-    width: 1280
+    width: 1000
     height: 80
     
     RowLayout {
-        anchors.fill: parent
+        anchors.centerIn: parent
         spacing: 40
-        anchors.leftMargin: 40
-        anchors.rightMargin: 40
 
         // Left Arrow
         Text {
             text: "⬅️"
             font.pixelSize: 40
-            color: blinkerLeft ? "#00ff00" : "#222"
-            property bool blinkerLeft: false // Bind later
+            color: clusterClient.leftIndicator ? "#00ff00" : "#333"
+            MouseArea {
+                 anchors.fill: parent
+                 onClicked: clusterClient.toggleLeftIndicator()
+            }
         }
 
-        // Warning Group 1
+        // Icons Frame
         Row {
-            spacing: 20
-            Text { text: "(!)"; color: "yellow"; font.pixelSize: 30; font.bold: true } // ABS/Brake
-            Text { text: "🔋"; color: "red"; font.pixelSize: 30 }
-            Text { text: "🔧"; color: "orange"; font.pixelSize: 30 } // Engine
-        }
+            spacing: 25
+            
+            // Seatbelt
+            Text { 
+                text: "❌" 
+                color: clusterClient.seatbelt ? "#333" : "red" 
+                font.pixelSize: 32 
+            }
+            
+            // Battery
+            Text { 
+                text: "🔋" 
+                color: clusterClient.battery ? "red" : "#333" // Only show if issue
+                font.pixelSize: 32 
+            }
+            
+            // Engine
+            Text { 
+                text: "🔧" 
+                color: clusterClient.engineWarn ? "yellow" : "#333"
+                font.pixelSize: 32 
+            }
+            
+            // Brake
+            Text {
+                text: "(P)"
+                color: clusterClient.handbrake ? "red" : "#333"
+                font.pixelSize: 32
+                font.bold: true
+            }
 
-        Item { Layout.fillWidth: true }
-
-        // CENTER BRANDING (Bottom)
-        Text {
-            text: "ASTER" // Replaces WAFDUNIX
-            color: "#00aaff"
-            font.pixelSize: 24
-            font.bold: true
-            font.letterSpacing: 2
-        }
-
-        Item { Layout.fillWidth: true }
-
-        // Warning Group 2
-        Row {
-            spacing: 20
-            Text { text: "❌"; color: "red"; font.pixelSize: 30 } // Seatbelt mock
-            Text { text: "(P)"; color: "yellow"; font.pixelSize: 30; font.bold: true }
-            Text { text: "💡"; color: "green"; font.pixelSize: 30 }
+            // High Beam
+            Text {
+                text: "💡" // Placeholder for high beam
+                color: clusterClient.highBeam ? "blue" : "#333"
+                font.pixelSize: 32
+            }
         }
 
         // Right Arrow
         Text {
             text: "➡️"
             font.pixelSize: 40
-            color: blinkerRight ? "#00ff00" : "#222"
-            property bool blinkerRight: false
+            color: clusterClient.rightIndicator ? "#00ff00" : "#333"
+            MouseArea {
+                 anchors.fill: parent
+                 onClicked: clusterClient.toggleRightIndicator()
+            }
         }
     }
 }
