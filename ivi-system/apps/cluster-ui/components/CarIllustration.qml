@@ -1,75 +1,81 @@
 import QtQuick
-import QtQuick.Layouts
 
 Item {
-    width: 250
-    height: 300
+    width: 320
+    height: 380
     
-    // Fallback car shape if image not provided or fails to load
-    Rectangle {
-        id: carBody
-        width: 140
-        height: 260
+    // Fallback car shape matching the blue SUV in image
+    Image {
+        // If real asset exists
+        source: "../assets/car_top_view.png"
         anchors.centerIn: parent
-        color: "#003366"
-        radius: 30
-        border.color: "#00aaff"
-        border.width: 2
+        width: 140; height: 260
+        fillMode: Image.PreserveAspectFit
+        visible: false // Using vector drawing below if image missing
+    }
+
+    Item {
+        id: vectorCar
+        width: 120; height: 220
+        anchors.centerIn: parent
+        
+        // Body
+        Rectangle {
+            anchors.fill: parent
+            radius: 30
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#0033CC" }
+                GradientStop { position: 1.0; color: "#001144" }
+            }
+            border.color: "#0055FF"
+            border.width: 2
+        }
+        
+        // Windshield
+        Rectangle {
+            width: 90; height: 60
+            color: "#111"
+            radius: 10
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top; anchors.topMargin: 50
+        }
         
         // Roof
         Rectangle {
-            width: 120; height: 140
+            width: 90; height: 70
+            color: "#002288"
             anchors.centerIn: parent
-            color: "#001133"
-            radius: 20
         }
+    }
+    
+    // Indicators
+    property bool isActive: clusterClient.leftIndicator || clusterClient.rightIndicator
+    
+    // Glows
+    Rectangle {
+        visible: clusterClient.leftIndicator
+        width: 10; height: 10; radius: 5
+        color: "orange"
+        anchors.left: vectorCar.left; anchors.top: vectorCar.top
         
-        // Hood Lines
-        Rectangle { width: 100; height: 2; color: "#00aaff"; anchors.top: parent.top; anchors.topMargin: 60; anchors.horizontalCenter: parent.horizontalCenter }
+        SequentialAnimation on opacity {
+            loops: Animation.Infinite
+            running: clusterClient.leftIndicator
+            NumberAnimation { from: 1; to: 0; duration: 400 }
+            NumberAnimation { from: 0; to: 1; duration: 400 }
+        }
     }
-
-    // Properties for signals
-    property bool leftSignal: false
-    property bool rightSignal: false
-
-    // Left Blinker
+    
     Rectangle {
-        width: 10; height: 30
-        color:  (leftSignal && blinkState) ? "orange" : "#333"
-        anchors.right: carBody.left
-        anchors.top: carBody.top
-        anchors.topMargin: 40
-    }
-    Rectangle {
-        width: 10; height: 30
-        color: (leftSignal && blinkState) ? "orange" : "#333"
-        anchors.right: carBody.left
-        anchors.bottom: carBody.bottom
-        anchors.bottomMargin: 40
-    }
-
-    // Right Blinker
-    Rectangle {
-        width: 10; height: 30
-        color:  (rightSignal && blinkState) ? "orange" : "#333"
-        anchors.left: carBody.right
-        anchors.top: carBody.top
-        anchors.topMargin: 40
-    }
-    Rectangle {
-        width: 10; height: 30
-        color: (rightSignal && blinkState) ? "orange" : "#333"
-        anchors.left: carBody.right
-        anchors.bottom: carBody.bottom
-        anchors.bottomMargin: 40
-    }
-
-    // Blinker Timer
-    property bool blinkState: false
-    Timer {
-        interval: 500
-        running: true
-        repeat: true
-        onTriggered: blinkState = !blinkState
+        visible: clusterClient.rightIndicator
+        width: 10; height: 10; radius: 5
+        color: "orange"
+        anchors.right: vectorCar.right; anchors.top: vectorCar.top
+         SequentialAnimation on opacity {
+            loops: Animation.Infinite
+            running: clusterClient.rightIndicator
+            NumberAnimation { from: 1; to: 0; duration: 400 }
+            NumberAnimation { from: 0; to: 1; duration: 400 }
+        }
     }
 }

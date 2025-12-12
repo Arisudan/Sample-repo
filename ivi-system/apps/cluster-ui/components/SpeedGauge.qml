@@ -1,16 +1,13 @@
 import QtQuick
 import QtQuick.Shapes
-import QtQuick.Effects
-import "../themes"
-import "../helpers"
 
 Item {
     id: root
-    width: 450; height: 450
+    width: 480; height: 480
     property real value: 0
     property real maxValue: 260
     
-    // Background Arc
+    // 1. Background Arc (Gradient Canvas)
     Canvas {
         id: dialCanvas
         anchors.fill: parent
@@ -19,84 +16,116 @@ Item {
             ctx.reset();
             var cx = width/2; var cy = height/2;
             var r = width/2 - 20;
-
-            // Gradient Stroke
-            var grad = ctx.createLinearGradient(width, height, 0, 0); // Diagonal
-            grad.addColorStop(0, "#0055ff");
-            grad.addColorStop(1, "#00ffff");
-
+            
+            // Outer Ring - Blue/Cyan Gradient
+            var grad = ctx.createLinearGradient(0, height, width, 0);
+            grad.addColorStop(0, "#0033CC"); // Dark Blue
+            grad.addColorStop(1, "#00E0FF"); // Cyan
+            
             ctx.beginPath();
-            ctx.arc(cx, cy, r, Math.PI*0.8, Math.PI*2.2);
-            ctx.lineWidth = 4;
+            ctx.arc(cx, cy, r, Math.PI*0.75, Math.PI*2.25); // 270 deg span (135 to 405)
+            ctx.lineWidth = 6;
+            ctx.lineCap = "round";
             ctx.strokeStyle = grad;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#00E0FF";
             ctx.stroke();
-
-            // Ticks
-            var start = Math.PI*0.8; 
-            var span = Math.PI*1.4; // 252 deg
-            var steps = 13; // 20kmh steps
-            for(var i=0; i<=steps; i++) {
-                var a = start + (i/steps)*span;
-                var x1 = cx + Math.cos(a)*(r-15);
-                var y1 = cy + Math.sin(a)*(r-15);
-                var x2 = cx + Math.cos(a)*(r-5);
-                var y2 = cy + Math.sin(a)*(r-5);
+            ctx.shadowBlur = 0; // Reset
+            
+            // Inner Tick Marks
+            // 0 - 260. Steps: 20 -> 13 major steps.
+            var startA = Math.PI*0.75;
+            var span = Math.PI*1.5;
+            
+            for(var i=0; i<=260; i+=10) {
+                var factor = i/260;
+                var angle = startA + factor * span;
+                
+                var isMajor = (i % 20 === 0);
+                var innerR = r - (isMajor ? 25 : 15);
+                var outerR = r - 5;
                 
                 ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = "white";
+                ctx.moveTo(cx + Math.cos(angle)*innerR, cy + Math.sin(angle)*innerR);
+                ctx.lineTo(cx + Math.cos(angle)*outerR, cy + Math.sin(angle)*outerR);
+                ctx.lineWidth = isMajor ? 3 : 1;
+                ctx.strokeStyle = "#FFFFFF";
                 ctx.stroke();
-
+                
                 // Text
-                var val = i*20;
-                var tx = cx + Math.cos(a)*(r-40);
-                var ty = cy + Math.sin(a)*(r-40);
-                ctx.fillStyle = "white";
-                ctx.font = "20px Roboto";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(val, tx, ty);
+                if(isMajor) {
+                    var textR = r - 50;
+                    var tx = cx + Math.cos(angle)*textR;
+                    var ty = cy + Math.sin(angle)*textR;
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 20px Roboto";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(i.toString(), tx, ty);
+                }
+            }
+        }
+    }
+    
+    // 2. Needle
+    Item {
+        anchors.fill: parent
+        // Mapping: 0 -> 135 deg, 260 -> 405 deg. Span 270.
+        property real angle: 135 + (root.value / root.maxValue) * 270
+        rotation: angle
+        
+        Behavior on rotation {
+            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+        }
+        
+        Rectangle {
+            width: 180; height: 4
+            color: "#E60000"
+            anchors.centerIn: parent
+            anchors.horizontalCenterOffset: -90
+            antialiasing: true
+            
+            // Glow effect
+            layer.enabled: true
+            // Basic glow simulated by rectangle shadow if effects unavailable, 
+            // but standard QtQuick primitives work best.
+            Rectangle {
+                anchors.fill: parent
+                color: "transparent"
+                border.color: "#FF3333"
+                border.width: 1
+                opacity: 0.5
             }
         }
     }
 
-    // Needle
-    Item {
-        anchors.fill: parent
-        property real angle: 144 + (root.value / root.maxValue) * 252
-        rotation: angle
-        Behavior on rotation {
-            NumberAnimation { duration: 250; easing.type: Easing.InOutCubic }
-        }
-        
-        Rectangle {
-            width: 150; height: 4
-            color: "#ff0000"
-            anchors.centerIn: parent
-            anchors.horizontalCenterOffset: -75
-            antialiasing: true
-        }
-    }
-
-    // Large Digital Speed
+    // 3. Center Digital Readout
     Column {
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: 40
+        anchors.verticalCenterOffset: 60
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: Math.round(root.value)
             font.pixelSize: 64
             font.bold: true
-            font.family: "Eurostile"
+            font.family: "Eurostile" // Or Roboto
             color: "white"
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "km/h"
-            font.pixelSize: 20
-            color: "#aaaaaa"
+            font.pixelSize: 18
+            color: "#AAAAAA"
         }
+    }
+    
+    // 4. Cap
+    Rectangle {
+        width: 30; height: 30
+        radius: 15
+        color: "#111"
+        border.color: "#333"
+        border.width: 2
+        anchors.centerIn: parent
     }
 }

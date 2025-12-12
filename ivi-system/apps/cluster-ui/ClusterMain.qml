@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Window
 import "components"
 import "themes"
 
@@ -9,83 +9,106 @@ Window {
     height: 720
     visible: true
     title: "ASTER Premium Cluster"
-    color: "#000000" // Deep black
+    color: "#05070A" // Very dark blue/black background from image
 
     ClusterTheme { id: theme }
 
-    // Top Bar
+    // Background Gradient (Vignette)
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#000000" }
+            GradientStop { position: 0.5; color: "#06101A" }
+            GradientStop { position: 1.0; color: "#000000" }
+        }
+    }
+
+    // Top Bar (Weather, Brand, Time)
     TopBar {
         id: topBar
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 80
+        height: 100
         z: 10
     }
 
     // Main Content Area
-    Row {
+    Item {
         anchors.centerIn: parent
-        spacing: 60
+        width: 1100; height: 450
         
-        // LEFT: RPM Gauge & Gear
-        Item {
-            width: 450; height: 450
-            
+        // Center Stack Lines (Top and Bottom Blue Glow Lines from Image)
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 40
+            width: 400; height: 2
+            color: "#004488"
+        }
+         Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 40
+            width: 400; height: 2
+            color: "#004488"
+        }
+
+        Row {
+            anchors.centerIn: parent
+            spacing: -20 // Gauges overlap the center stack slightly or sit tight
+
+            // Left: RPM Gauge
             RpmGauge {
-                id: rpmGauge
-                anchors.centerIn: parent
+                width: 420; height: 420
                 value: clusterClient.engineRpm
                 maxValue: 8000
             }
-            
-            // Integrated Gear Indicator (Left of RPM or inside? Design showed distinct left stack)
-            GearIndicator {
-                anchors.left: parent.left
-                anchors.leftMargin: -100 // Shifted to far left of screen relative to this group
+
+            // Center Display (Map/Car)
+            Item {
+                width: 320; height: 350
                 anchors.verticalCenter: parent.verticalCenter
-                currentGear: clusterClient.gear 
-            }
-        }
+                clip: true
+                
+                NavigationView {
+                    anchors.fill: parent
+                    visible: clusterClient.navActive
+                    opacity: visible ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 500 } }
+                }
 
-        // CENTER: Dynamic View (Car or Map)
-        Item {
-            width: 300
-            height: 350
-            anchors.verticalCenter: parent.verticalCenter
-            
-            // Map View (Active when Nav is Active)
-            NavigationView {
-                anchors.fill: parent
-                visible: clusterClient.navActive
+                CarIllustration {
+                    anchors.fill: parent
+                    visible: !clusterClient.navActive
+                    opacity: visible ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 500 } }
+                }
             }
 
-            // Car View (Default)
-            CarIllustration {
-                anchors.fill: parent
-                visible: !clusterClient.navActive
-                leftSignal: clusterClient.leftIndicator
-                rightSignal: clusterClient.rightIndicator
-            }
-        }
-
-        // RIGHT: Speed Gauge
-        Item {
-             width: 450; height: 450
-             SpeedGauge {
-                id: speedGauge
-                anchors.centerIn: parent
+            // Right: Speed Gauge
+            SpeedGauge {
+                width: 420; height: 420
                 value: clusterClient.vehicleSpeed
                 maxValue: 260
-             }
+            }
         }
     }
-
-    // Bottom Status Bar
+    
+    // Bottom Warning Icons
     WarningIcons {
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 20
+        anchors.bottomMargin: 30
         anchors.horizontalCenter: parent.horizontalCenter
-        width: parent.width * 0.8
+    }
+    
+    // Hidden Gear Indicator (Reference image doesn't show large vertical strip, likely subtle or integrated)
+    // But requirement says "Vertical P R N D left". Keeping it but subtle.
+    GearIndicator {
+        anchors.left: parent.left
+        anchors.leftMargin: 40
+        anchors.verticalCenter: parent.verticalCenter
+        scale: 0.8
+        opacity: 0.6
     }
 }

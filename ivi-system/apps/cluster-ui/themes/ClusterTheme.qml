@@ -1,17 +1,16 @@
 import QtQuick
 
 QtObject {
-    property color backgroundMain: "black"
-    property color gaugeGlow: "#00aaff"
-    property color needleColor: "#ff0000"
-    property color textPrimary: "#ffffff"
-    property color textSecondary: "#aaaaaa"
-    property color accent: "#00aaff"
-    property color warning: "#ffcc00"
-    property color error: "#ff4444"
-    property color success: "#44ff44"
+    property color bgMain: "#000000"
+    property color glowCyan: "#00E0FF"
+    property color glowBlue: "#0055FF"
+    property color needleRed: "#E60000"
+    property color textWhite: "#FFFFFF"
+    property color textGray: "#AAAAAA"
+    property color warningRed: "#FF3333"
+    property color warningAmber: "#FFCC00"
     
-    // Gradient definitions can be handled via components using these colors
-    property font fontMain: Qt.font({family: "Roboto", pointSize: 14, weight: Font.Medium})
-    property font fontEuro: Qt.font({family: "Eurostile", pointSize: 14, weight: Font.Bold})
+    // Gradients can be constructed in-place, but palettes are consistent here.
+    property font fontMain: Qt.font({family: "Roboto", pixelSize: 18, weight: Font.Normal})
+    property font fontDigit: Qt.font({family: "Eurostile", pixelSize: 24, weight: Font.Bold})
 }

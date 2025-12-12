@@ -1,12 +1,12 @@
 import QtQuick
+import QtQuick.Shapes
 
 Item {
     id: root
-    width: 450; height: 450
+    width: 480; height: 480
     property real value: 0
     property real maxValue: 8000
     
-    // Background Arc
     Canvas {
         id: dialCanvas
         anchors.fill: parent
@@ -15,87 +15,113 @@ Item {
             ctx.reset();
             var cx = width/2; var cy = height/2;
             var r = width/2 - 20;
-
-            // Gradient Stroke
-            var grad = ctx.createLinearGradient(0, height, width, 0); 
-            grad.addColorStop(0, "#0055ff");
-            grad.addColorStop(1, "#00ffff");
-
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, Math.PI*0.8, Math.PI*2.2);
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = grad;
-            ctx.stroke();
             
-            // Redline (last 20%)
+            // Outer Ring - Blue/Cyan Gradient
+            var grad = ctx.createLinearGradient(width, height, 0, 0);
+            grad.addColorStop(0, "#0033CC"); 
+            grad.addColorStop(1, "#00E0FF");
+            
             ctx.beginPath();
-            ctx.arc(cx, cy, r, Math.PI*0.8 + (Math.PI*1.4)*0.8, Math.PI*2.2);
-            ctx.strokeStyle = "#ff0000";
+            ctx.arc(cx, cy, r, Math.PI*0.75, Math.PI*2.25);
+            ctx.lineWidth = 6;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = grad;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#00E0FF";
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            
+            // Redline (6000-8000)
+            // Factorstart = 6/8 = 0.75 of sweep. 
+            // Sweep starts at 135 deg (0.75 PI), spans 270 (1.5PI).
+            // Redline start angle = 0.75PI + 0.75 * 1.5PI = 1.875PI (337.5 deg)
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, Math.PI * 1.875, Math.PI * 2.25);
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = "#FF0000";
             ctx.stroke();
 
             // Ticks (0-8)
-            var start = Math.PI*0.8; 
-            var span = Math.PI*1.4; 
-            for(var i=0; i<=8; i++) {
-                var a = start + (i/8)*span;
-                var x1 = cx + Math.cos(a)*(r-15);
-                var y1 = cy + Math.sin(a)*(r-15);
-                var x2 = cx + Math.cos(a)*(r-5);
-                var y2 = cy + Math.sin(a)*(r-5);
+            var startA = Math.PI*0.75;
+            var span = Math.PI*1.5;
+            
+            for(var i=0; i<=80; i+=2) { // 0, 200, ... 8000 (div 100)
+                var val = i*100;
+                var factor = val/8000;
+                var angle = startA + factor * span;
+                
+                var isMajor = (val % 1000 === 0);
+                var isRed = (val >= 6000);
+                
+                var innerR = r - (isMajor ? 25 : 15);
+                var outerR = r - 5;
                 
                 ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = (i>=6) ? "red" : "white";
+                ctx.moveTo(cx + Math.cos(angle)*innerR, cy + Math.sin(angle)*innerR);
+                ctx.lineTo(cx + Math.cos(angle)*outerR, cy + Math.sin(angle)*outerR);
+                ctx.lineWidth = isMajor ? 3 : 1;
+                ctx.strokeStyle = isRed ? "#FF0000" : "#FFFFFF";
                 ctx.stroke();
-
-                var val = i;
-                var tx = cx + Math.cos(a)*(r-40);
-                var ty = cy + Math.sin(a)*(r-40);
-                ctx.fillStyle = "white";
-                ctx.font = "20px Roboto";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(val, tx, ty);
+                
+                if(isMajor) {
+                    var textR = r - 50;
+                    var tx = cx + Math.cos(angle)*textR;
+                    var ty = cy + Math.sin(angle)*textR;
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 20px Roboto";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText((val).toString(), tx, ty);
+                }
             }
         }
     }
-
+    
     // Needle
     Item {
         anchors.fill: parent
-        property real angle: 144 + (root.value / root.maxValue) * 252
+        property real angle: 135 + (root.value / root.maxValue) * 270
         rotation: angle
+        
         Behavior on rotation {
-            NumberAnimation { duration: 250; easing.type: Easing.InOutCubic }
+            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
         }
         
         Rectangle {
-            width: 150; height: 4
-            color: "#ff0000"
+            width: 180; height: 4
+            color: "#E60000"
             anchors.centerIn: parent
-            anchors.horizontalCenterOffset: -75
+            anchors.horizontalCenterOffset: -90
             antialiasing: true
         }
     }
 
-    // Small Digital RPM
+    // Center Digital RPM
     Column {
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: 50
+        anchors.verticalCenterOffset: 60
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: Math.round(root.value)
-            font.pixelSize: 24
+            font.pixelSize: 32
             font.bold: true
+            font.family: "Eurostile"
             color: "white"
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "rpm"
-            font.pixelSize: 16
-            color: "#aaaaaa"
+            text: "RPM"
+            font.pixelSize: 18
+            color: "#E60000" // Red label
         }
+    }
+    
+    Rectangle {
+        width: 30; height: 30
+        radius: 15
+        color: "#111"
+        border.color: "#333"
+        border.width: 2
+        anchors.centerIn: parent
     }
 }
